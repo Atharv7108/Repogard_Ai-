@@ -61,6 +61,7 @@ def _styles() -> Dict[str, ParagraphStyle]:
         "body": ParagraphStyle("body", parent=sample["BodyText"], fontSize=10, leading=14, textColor=colors.HexColor("#0f172a")),
         "small": ParagraphStyle("small", parent=sample["BodyText"], fontSize=9, leading=12, textColor=colors.HexColor("#334155")),
         "muted": ParagraphStyle("muted", parent=sample["BodyText"], fontSize=9, leading=12, textColor=colors.HexColor("#64748b")),
+        "mono": ParagraphStyle("mono", parent=sample["BodyText"], fontName="Courier", fontSize=8.0, leading=9.5, textColor=colors.HexColor("#0f172a")),
     }
 
 
@@ -89,6 +90,48 @@ def _draw_header_footer(canvas, doc) -> None:
     canvas.drawString(doc.leftMargin, A4[1] - 1.0 * cm, "RepoGuard AI - Repository Intelligence Report")
     canvas.drawRightString(A4[0] - doc.rightMargin, 1.0 * cm, f"Page {doc.page}")
     canvas.restoreState()
+
+
+def _repo_tree_ascii_lines(tree: Dict[str, Any], max_depth: int = 4, max_lines: int = 140) -> List[str]:
+    lines: List[str] = []
+
+    def walk(node: Dict[str, Any], prefix: str, depth: int, is_last: bool) -> None:
+        if len(lines) >= max_lines:
+            return
+
+        name = str(node.get("name", ""))
+        node_type = node.get("type", "file")
+        children = node.get("children", {}) if isinstance(node.get("children"), dict) else {}
+
+        if depth == 0:
+            lines.append(f"{name}/")
+        else:
+            connector = "`-- " if is_last else "|-- "
+            suffix = "/" if node_type == "dir" else ""
+            lines.append(f"{prefix}{connector}{name}{suffix}")
+
+        if depth >= max_depth or node_type != "dir":
+            return
+
+        sorted_children = sorted(children.values(), key=lambda c: (c.get("type") != "dir", c.get("name", "")))
+        for idx, child in enumerate(sorted_children):
+            if len(lines) >= max_lines:
+                return
+            next_prefix = prefix + ("    " if is_last else "|   ")
+            walk(child, next_prefix, depth + 1, idx == len(sorted_children) - 1)
+
+    walk(tree, "", 0, True)
+    if len(lines) >= max_lines:
+        lines.append("`-- ... (truncated)")
+    return lines
+
+
+def _html_preserve_spaces(text: str) -> str:
+    return text.replace(" ", "&nbsp;")
+
+
+def _chunk_lines(lines: List[str], chunk_size: int) -> List[List[str]]:
+    return [lines[i:i + chunk_size] for i in range(0, len(lines), chunk_size)]
 
 
 def generate_pdf_report(
@@ -205,6 +248,56 @@ def generate_pdf_report(
             )
         )
         story.append(meta_table)
+        story.append(Spacer(1, 0.4 * cm))
+
+        repo_tree = repo_data.get("repo_tree", {"name": repo_data.get("full_name", "repo"), "type": "dir", "children": {}})
+        tree_lines = _repo_tree_ascii_lines(repo_tree, max_depth=4, max_lines=220)
+        if tree_lines:
+            story.append(Paragraph("Repository Tree Snapshot", styles["h3"]))
+            story.append(Paragraph("Branch-style structure of the default branch.", styles["small"]))
+            tree_chunks = _chunk_lines(tree_lines, 45)
+            for idx, chunk in enumerate(tree_chunks, start=1):
+                if idx > 1:
+                    story.append(PageBreak())
+                    story.append(Paragraph("Repository Tree Snapshot (cont.)", styles["h3"]))
+                tree_html = "<br/>".join(_html_preserve_spaces(line) for line in chunk)
+                tree_table = Table([[Paragraph(tree_html, styles["mono"]) ]], colWidths=[15.6 * cm])
+                tree_table.setStyle(
+                    TableStyle(
+                        [
+                            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+                            ("BOX", (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")),
+                            ("PADDING", (0, 0), (-1, -1), 6),
+                        ]
+                    )
+                )
+                story.append(tree_table)
+
+        branches = repo_data.get("branches", [])
+        if isinstance(branches, list) and branches:
+            story.append(Spacer(1, 0.3 * cm))
+            story.append(Paragraph("Repository Branches", styles["h3"]))
+            story.append(Paragraph("Active branches at the time of analysis.", styles["small"]))
+            branch_rows = [["Branch", "Protected", "Commit"]]
+            for branch in branches[:30]:
+                name = _safe_text(branch.get("name"))
+                protected = "Yes" if branch.get("protected") else "No"
+                sha = _safe_text(branch.get("commit_sha"))
+                short_sha = sha[:7] if isinstance(sha, str) else ""
+                branch_rows.append([name, protected, short_sha])
+            branch_table = Table(branch_rows, colWidths=[8.2 * cm, 3 * cm, 4 * cm])
+            branch_table.setStyle(
+                TableStyle(
+                    [
+                        ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#94a3b8")),
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e2e8f0")),
+                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                        ("PADDING", (0, 0), (-1, -1), 4),
+                    ]
+                )
+            )
+            story.append(branch_table)
+
         story.append(PageBreak())
 
         # 4) Health score breakdown

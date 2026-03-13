@@ -554,6 +554,60 @@ def _collect_commit_activity(repo_obj: Any) -> List[Dict[str, Any]]:
     return []
 
 
+def _collect_branches(repo_obj: Any, limit: int = 80) -> List[Dict[str, Any]]:
+    branches: List[Dict[str, Any]] = []
+    try:
+        for branch in repo_obj.get_branches()[:limit]:
+            branches.append(
+                {
+                    "name": branch.name,
+                    "protected": bool(getattr(branch, "protected", False)),
+                    "commit_sha": getattr(branch.commit, "sha", None),
+                }
+            )
+    except Exception:
+        return []
+    return branches
+
+
+def _build_repo_tree(entries: List[Tuple[str, str]], max_depth: int = 4, max_entries: int = 300) -> Dict[str, Any]:
+    tree: Dict[str, Any] = {"name": "/", "type": "dir", "children": {}}
+    count = 0
+
+    for path, entry_type in entries:
+        if count >= max_entries:
+            break
+        parts = [p for p in path.split("/") if p]
+        if not parts:
+            continue
+        count += 1
+
+        node = tree
+        for depth, part in enumerate(parts[:max_depth]):
+            is_last = depth == min(len(parts), max_depth) - 1
+            children = node.setdefault("children", {})
+            if part not in children:
+                children[part] = {"name": part, "type": "dir", "children": {}}
+            node = children[part]
+            if is_last and len(parts) > max_depth:
+                node.setdefault("children", {})["..."] = {"name": "...", "type": "file"}
+
+        if len(parts) <= max_depth:
+            node["type"] = "dir" if entry_type == "tree" else "file"
+
+    return tree
+
+
+def _collect_repo_tree(repo_obj: Any) -> Dict[str, Any]:
+    try:
+        ref = repo_obj.get_git_ref(f"heads/{repo_obj.default_branch}")
+        tree = repo_obj.get_git_tree(ref.object.sha, recursive=True)
+        entries = [(item.path, item.type) for item in tree.tree if hasattr(item, "path") and item.type in ("blob", "tree")]
+        return _build_repo_tree(entries)
+    except Exception:
+        return {"name": "/", "type": "dir", "children": {}}
+
+
 def collect_repository_data(repo_url: str) -> Dict[str, Any]:
     """
     Collect non-AI repository data used by RepoGuard AI analysis.
@@ -568,6 +622,8 @@ def collect_repository_data(repo_url: str) -> Dict[str, Any]:
 
         top_contributors = _collect_top_contributors(repo_obj, limit=20)
         commit_activity = _collect_commit_activity(repo_obj)
+        repo_tree = _collect_repo_tree(repo_obj)
+        branches = _collect_branches(repo_obj)
 
         contributor_count = repo_obj.get_contributors().totalCount
         open_issues_count = repo_obj.get_issues(state="open").totalCount
@@ -599,6 +655,8 @@ def collect_repository_data(repo_url: str) -> Dict[str, Any]:
             "contributors": contributor_count,
             "top_20_contributors": top_contributors,
             "commit_activity": commit_activity,
+            "repo_tree": repo_tree,
+            "branches": branches,
         }
         return data
 

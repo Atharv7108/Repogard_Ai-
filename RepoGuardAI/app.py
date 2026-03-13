@@ -2,6 +2,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 import textwrap
+from datetime import datetime
 
 from analyzer import AnalysisError, analyze_repository
 from charts import build_all_charts
@@ -164,6 +165,53 @@ def show_priorities_table(priorities: list) -> None:
     )
 
 
+def _repo_tree_html(tree: dict, root_label: str) -> str:
+    if not isinstance(tree, dict):
+        return ""
+
+    def render_node(node: dict, depth: int = 0) -> str:
+        name = node.get("name", "")
+        node_type = node.get("type", "file")
+        children = node.get("children", {}) if isinstance(node.get("children"), dict) else {}
+
+        if depth == 0:
+            label = root_label or "root"
+        else:
+            label = name
+
+        if node_type == "dir":
+            inner = "".join(
+                render_node(child, depth + 1)
+                for child in sorted(children.values(), key=lambda c: (c.get("type") != "dir", c.get("name", "")))
+            )
+            return (
+                f"<details class=\"tree-node\" {'open' if depth < 2 else ''}>"
+                f"<summary>📁 {label}</summary>"
+                f"<div class=\"tree-children\">{inner}</div>"
+                f"</details>"
+            )
+
+        return f"<div class=\"tree-file\">📄 {label}</div>"
+
+    return render_node(tree)
+
+
+def _branches_html(branches: list) -> str:
+    if not isinstance(branches, list) or not branches:
+        return ""
+    items = []
+    for branch in branches:
+        name = branch.get("name", "unknown")
+        sha = branch.get("commit_sha")
+        short_sha = sha[:7] if isinstance(sha, str) else ""
+        protected = branch.get("protected", False)
+        badge = "<span class=\"branch-badge\">protected</span>" if protected else ""
+        sha_html = f"<span class=\"branch-sha\">{short_sha}</span>" if short_sha else ""
+        items.append(f"<div class=\"branch-item\"><span class=\"branch-name\">{name}</span>{badge}{sha_html}</div>")
+
+    return "".join(items)
+
+
 def main() -> None:
     inject_styles()
 
@@ -173,6 +221,8 @@ def main() -> None:
             st.session_state[key] = None
     if "analysis_running" not in st.session_state:
         st.session_state.analysis_running = False
+    if "analysis_history" not in st.session_state:
+        st.session_state.analysis_history = []
 
     # ── Top Navigation / Header ────────────────
     st.markdown(
@@ -300,6 +350,17 @@ def main() -> None:
             metric_subtext = "Live AI - LLaMA 3.3 70B"
             st.success(f"Analysis complete in {runtime_text}")
 
+        repo_name = analysis_result.get("repository_data", {}).get("full_name", "Repository")
+        history_entry = {
+            "repo_name": repo_name,
+            "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+            "health_score": summary.get("health_score", "--"),
+            "security_score": summary.get("security_score", "--"),
+            "technical_debt_hours": summary.get("technical_debt_hours", "--"),
+        }
+        if not st.session_state.analysis_history or st.session_state.analysis_history[0].get("repo_name") != repo_name:
+            st.session_state.analysis_history.insert(0, history_entry)
+
         try:
             built_charts = build_all_charts(analysis_result)
             for key, _ in chart_specs:
@@ -348,6 +409,24 @@ def main() -> None:
                 use_container_width=True,
                 config={"responsive": True, "displayModeBar": False},
             )
+
+    # ── Repository Tree ─────────────────────────
+    section_header("🗂️", "Repository Tree")
+    repo_data = analysis_result.get("repository_data", {}) if analysis_result else {}
+    repo_tree = repo_data.get("repo_tree", {"name": "/", "type": "dir", "children": {}})
+    root_label = repo_data.get("full_name", "Repository")
+    tree_html = _repo_tree_html(repo_tree, root_label)
+    if not tree_html:
+        tree_html = '<div class="tree-file">No tree data available yet. Run analysis to load it.</div>'
+    st.markdown(f"<div class=\"repo-tree\">{tree_html}</div>", unsafe_allow_html=True)
+
+    # ── Branches ────────────────────────────────
+    section_header("🌿", "Branches")
+    branches = repo_data.get("branches", [])
+    branches_html = _branches_html(branches)
+    if not branches_html:
+        branches_html = '<div class="branch-item">No branch data available yet. Run analysis to load it.</div>'
+    st.markdown(f"<div class=\"branch-list\">{branches_html}</div>", unsafe_allow_html=True)
 
     # ── Refactoring Priorities ─────────────────
     section_header("🔧", "Top Refactoring Priorities")

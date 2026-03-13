@@ -89,8 +89,19 @@ html,body,main.application{
 
 /* Repo tree */
 .repo-tree{padding:12px;border-radius:12px;background:var(--glass);border:1px solid rgba(255,255,255,0.03)}
-.folder{display:flex;align-items:center;gap:8px;color:var(--muted)}
-.file{color:#cfeeff;margin-left:20px}
+.repo-tree{max-height:360px;overflow:auto}
+.tree-node{margin:6px 0;padding-left:6px}
+.tree-node summary{cursor:pointer;color:#cfeeff;font-weight:600;list-style:none}
+.tree-node summary::-webkit-details-marker{display:none}
+.tree-children{margin-left:16px;margin-top:6px;border-left:1px dashed rgba(148,163,184,0.2);padding-left:12px}
+.tree-file{margin:6px 0 6px 18px;color:#b6c9d6}
+
+/* Branch list */
+.branch-list{padding:12px;border-radius:12px;background:var(--glass);border:1px solid rgba(255,255,255,0.03);max-height:240px;overflow:auto}
+.branch-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,0.02);margin-bottom:8px}
+.branch-name{color:#e8f8ff;font-weight:600}
+.branch-badge{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(110,231,183,0.15);color:#6ee7b7;text-transform:uppercase;letter-spacing:0.04em}
+.branch-sha{font-size:11px;color:#94c4de;margin-left:auto}
 
 /* Priorities table */
 .priority-table{width:100%;border-collapse:collapse}
@@ -332,3 +343,28 @@ html, body, .stApp {
 .risk-medium { background: linear-gradient(90deg, #5c3a21, #69442a); color: #ffb74d; }
 .risk-high { background: linear-gradient(90deg, #5c1e1e, #6e2525); color: #ef5350; }
 .risk-critical { background: linear-gradient(90deg, #4a148c, #5e1aab); color: #ce93d8; }
+
+/* Reports page */
+.report-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.report-card{padding:14px;border-radius:12px;background:var(--glass);border:1px solid rgba(255,255,255,0.03)}
+.report-title{font-weight:700;color:#e8f8ff}
+.report-meta{color:var(--muted);font-size:12px;margin:4px 0 10px}
+.report-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.report-metrics span{color:var(--muted);font-size:11px;display:block}
+.report-metrics b{color:#e8f8ff;font-size:14px}
+
+/* Settings page */
+.settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:16px}
+.settings-card{padding:14px;border-radius:12px;background:var(--glass);border:1px solid rgba(255,255,255,0.03)}
+.settings-title{color:#e8f8ff;font-weight:700}
+.settings-sub{color:var(--muted);font-size:12px;margin-top:6px}
+.settings-form{padding:12px;border-radius:12px;background:var(--glass);border:1px solid rgba(255,255,255,0.03)}
+
+/* About page */
+.about-card{padding:16px;border-radius:14px;background:var(--glass);border:1px solid rgba(255,255,255,0.03);margin-bottom:16px}
+.about-title{font-size:18px;font-weight:700;color:#e8f8ff}
+.about-body{color:var(--muted);margin-top:6px}
+.about-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.about-feature{padding:12px;border-radius:12px;background:var(--glass);border:1px solid rgba(255,255,255,0.03)}
+.about-feature-title{color:#e8f8ff;font-weight:600}
+.about-feature-body{color:var(--muted);font-size:12px;margin-top:6px}
