@@ -1,0 +1,10 @@
+streamlit
+PyGithub
+requests
+plotly
+pandas
+networkx
+reportlab
+matplotlib
+kaleido
+python-dotenv
