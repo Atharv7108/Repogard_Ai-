@@ -17,7 +17,7 @@ class AnalysisError(Exception):
 
 
 GROK_API_URL = "https://api.x.ai/v1/chat/completions"
-GROK_MODEL = os.getenv("GROK_MODEL", "grok-2-latest")
+GROK_MODEL = os.getenv("GROK_MODEL", "grok-4-fast-reasoning")
 
 AI_TASKS: Dict[str, str] = {
     "repository_health_score": (
@@ -383,6 +383,7 @@ def run_ai_analysis(repo_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     ai_context = _make_ai_context(repo_data)
     ai_result: Dict[str, Any] = {}
+    failed_tasks: Dict[str, str] = {}
     started_at = time.time()
 
     with ThreadPoolExecutor(max_workers=4) as executor:
@@ -396,19 +397,25 @@ def run_ai_analysis(repo_data: Dict[str, Any]) -> Dict[str, Any]:
             try:
                 raw_section = future.result()
                 ai_result[task_key] = _normalize_ai_section(task_key, raw_section)
-            except Exception:
+            except Exception as exc:
                 ai_result[task_key] = _default_ai_section(task_key)
+                failed_tasks[task_key] = str(exc)[:300]
 
     # Ensure every section exists even if some futures unexpectedly failed.
     for task_key in AI_TASKS:
         if task_key not in ai_result:
             ai_result[task_key] = _default_ai_section(task_key)
+            failed_tasks[task_key] = "No result produced for task."
 
     elapsed_ms = int((time.time() - started_at) * 1000)
+    fallback_count = len(failed_tasks)
     ai_result["meta"] = {
         "model": GROK_MODEL,
         "elapsed_ms": elapsed_ms,
         "target_runtime_seconds": 15,
+        "fallback_count": fallback_count,
+        "used_fallback": fallback_count > 0,
+        "failed_tasks": failed_tasks,
     }
     return ai_result
 

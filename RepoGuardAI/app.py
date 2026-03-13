@@ -2,6 +2,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from analyzer import AnalysisError, analyze_repository
+
 
 st.set_page_config(page_title="RepoGuard AI", page_icon="🛡️", layout="wide")
 
@@ -109,13 +111,13 @@ def placeholder_figure(title: str) -> go.Figure:
     return fig
 
 
-def show_metric_card(label: str, value: str) -> None:
+def show_metric_card(label: str, value: str, subtext: str) -> None:
     st.markdown(
         f"""
         <div class="metric-card">
             <div class="metric-label">{label}</div>
             <div class="metric-value">{value}</div>
-            <div class="subtext">Phase 1 placeholder</div>
+            <div class="subtext">{subtext}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -124,6 +126,11 @@ def show_metric_card(label: str, value: str) -> None:
 
 def main() -> None:
     inject_styles()
+
+    if "analysis_result" not in st.session_state:
+        st.session_state.analysis_result = None
+    if "analysis_error" not in st.session_state:
+        st.session_state.analysis_error = None
 
     st.markdown(
         """
@@ -140,23 +147,103 @@ def main() -> None:
         placeholder="https://github.com/owner/repository",
     )
 
-    analyze_clicked = st.button("🚀 ANALYZE", type="primary", use_container_width=True)
+    analyze_clicked = st.button("🚀 ANALYZE", type="primary", width="stretch")
     if analyze_clicked:
         if not repo_url.strip():
             st.warning("Please enter a GitHub repository URL.")
         else:
-            st.info("Phase 1 UI is ready. Analysis pipeline will be connected in Phase 5.")
+            st.session_state.analysis_error = None
+            with st.spinner("Analyzing repository with GitHub + GROK pipeline..."):
+                try:
+                    st.session_state.analysis_result = analyze_repository(repo_url.strip())
+                except AnalysisError as exc:
+                    st.session_state.analysis_result = None
+                    st.session_state.analysis_error = str(exc)
+                except Exception as exc:
+                    st.session_state.analysis_result = None
+                    st.session_state.analysis_error = f"Unexpected error: {exc}"
+
+    analysis_result = st.session_state.analysis_result
+    analysis_error = st.session_state.analysis_error
+
+    if analysis_error:
+        st.error(analysis_error)
+
+    summary = {
+        "health_score": "--",
+        "bus_factor_percent": "--",
+        "technical_debt_hours": "--",
+        "security_score": "--",
+    }
+    metric_subtext = "Awaiting analysis"
+    priorities_df = pd.DataFrame(
+        {
+            "Priority": [1, 2, 3, 4, 5],
+            "Area": ["Pending"] * 5,
+            "Estimated Effort (hrs)": [0, 0, 0, 0, 0],
+            "Risk": ["TBD"] * 5,
+            "Recommendation": ["Will be generated after analysis"] * 5,
+        }
+    )
+
+    if analysis_result:
+        summary_payload = analysis_result.get("summary", {})
+        ai_meta = analysis_result.get("ai_analysis", {}).get("meta", {})
+        used_fallback = bool(ai_meta.get("used_fallback", False))
+        fallback_count = int(ai_meta.get("fallback_count", 0)) if isinstance(ai_meta.get("fallback_count", 0), int) else 0
+        failed_tasks = ai_meta.get("failed_tasks", {}) if isinstance(ai_meta.get("failed_tasks", {}), dict) else {}
+
+        summary = {
+            "health_score": f"{summary_payload.get('health_score', '--')} %",
+            "bus_factor_percent": f"{summary_payload.get('bus_factor_percent', '--')} %",
+            "technical_debt_hours": f"{summary_payload.get('technical_debt_hours', '--')} hrs",
+            "security_score": f"{summary_payload.get('security_score', '--')} %",
+        }
+
+        if used_fallback:
+            metric_subtext = "Fallback estimate"
+            st.warning(
+                f"AI fallback mode used for {fallback_count} task(s). "
+                "If values look repeated across repos, verify GITHUB_TOKEN, GROK_API_KEY, and model access."
+            )
+            with st.expander("Show AI failure details"):
+                if failed_tasks:
+                    for task_name, reason in failed_tasks.items():
+                        st.write(f"- {task_name}: {reason}")
+                else:
+                    st.write("No detailed failure reason available.")
+        else:
+            metric_subtext = "Live AI analysis"
+
+        priorities = summary_payload.get("top_5_refactoring_priorities", [])
+        if priorities:
+            rows = []
+            for idx, item in enumerate(priorities[:5], start=1):
+                rows.append(
+                    {
+                        "Priority": idx,
+                        "Area": item.get("area", "unknown"),
+                        "Estimated Effort (hrs)": item.get("effort_hours", 0),
+                        "Risk": item.get("risk", "medium"),
+                        "Recommendation": item.get("recommendation", ""),
+                    }
+                )
+            priorities_df = pd.DataFrame(rows)
+
+        runtime = analysis_result.get("runtime", {}).get("total_elapsed_ms")
+        if runtime is not None:
+            st.success(f"Analysis complete in {runtime} ms")
 
     st.markdown('<div class="section-title">Repository Core Metrics</div>', unsafe_allow_html=True)
     metric_cols = st.columns(4)
     with metric_cols[0]:
-        show_metric_card("Health Score", "-- %")
+        show_metric_card("Health Score", str(summary["health_score"]), metric_subtext)
     with metric_cols[1]:
-        show_metric_card("Bus Factor", "-- %")
+        show_metric_card("Bus Factor", str(summary["bus_factor_percent"]), metric_subtext)
     with metric_cols[2]:
-        show_metric_card("Technical Debt", "-- hrs")
+        show_metric_card("Technical Debt", str(summary["technical_debt_hours"]), metric_subtext)
     with metric_cols[3]:
-        show_metric_card("Security Score", "-- %")
+        show_metric_card("Security Score", str(summary["security_score"]), metric_subtext)
 
     st.markdown('<div class="section-title">Analysis Visualizations (7)</div>', unsafe_allow_html=True)
     chart_titles = [
@@ -173,19 +260,10 @@ def main() -> None:
     for idx, title in enumerate(chart_titles):
         target_col = left if idx % 2 == 0 else right
         with target_col:
-            st.plotly_chart(placeholder_figure(title), use_container_width=True)
+            st.plotly_chart(placeholder_figure(title), config={"responsive": True})
 
     st.markdown('<div class="section-title">Top 5 Refactoring Priorities</div>', unsafe_allow_html=True)
-    priorities_df = pd.DataFrame(
-        {
-            "Priority": [1, 2, 3, 4, 5],
-            "Area": ["Pending"] * 5,
-            "Estimated Effort (hrs)": [0, 0, 0, 0, 0],
-            "Risk": ["TBD"] * 5,
-            "Recommendation": ["Will be generated after analysis"] * 5,
-        }
-    )
-    st.dataframe(priorities_df, use_container_width=True, hide_index=True)
+    st.dataframe(priorities_df, width="stretch", hide_index=True)
 
     st.download_button(
         label="Download PDF Report",
