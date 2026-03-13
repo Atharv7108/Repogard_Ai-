@@ -60,20 +60,20 @@ Definition of done:
 ---
 
 ## Phase 3 - GROK AI Integration (analyzer.py)
-- [ ] Add GROK API client via `requests`
-- [ ] Build 8 prompt templates for:
-  - [ ] repository health score
-  - [ ] bus factor
-  - [ ] technical debt
-  - [ ] security risk
-  - [ ] maintainability
-  - [ ] documentation quality
-  - [ ] contributor distribution
-  - [ ] refactoring priorities
-- [ ] Create strict JSON output schema for AI responses
-- [ ] Add parser + fallback defaults if AI output is malformed
-- [ ] Add timeout and retry strategy
-- [ ] Optimize for target total runtime (~15s)
+- [x] Add GROK API client via `requests`
+- [x] Build 8 prompt templates for:
+  - [x] repository health score
+  - [x] bus factor
+  - [x] technical debt
+  - [x] security risk
+  - [x] maintainability
+  - [x] documentation quality
+  - [x] contributor distribution
+  - [x] refactoring priorities
+- [x] Create strict JSON output schema for AI responses
+- [x] Add parser + fallback defaults if AI output is malformed
+- [x] Add timeout and retry strategy
+- [x] Optimize for target total runtime (~15s)
 
 Definition of done:
 - Analyzer returns stable, structured JSON including all required scores and priorities.
