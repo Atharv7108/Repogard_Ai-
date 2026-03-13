@@ -4,15 +4,15 @@ This roadmap breaks the project into small parts so we can build safely and veri
 
 ## Phase 0 - Project Setup
 - [ ] Create folder structure:
-  - [ ] `RepoGuardAI/app.py`
-  - [ ] `RepoGuardAI/analyzer.py`
-  - [ ] `RepoGuardAI/charts.py`
-  - [ ] `RepoGuardAI/pdf_generator.py`
-  - [ ] `RepoGuardAI/requirements.txt`
-  - [ ] `RepoGuardAI/.streamlit/config.toml`
-- [ ] Create Python virtual environment
-- [ ] Install dependencies from `requirements.txt`
-- [ ] Confirm app launches with `streamlit run app.py`
+  - [x] `RepoGuardAI/app.py`
+  - [x] `RepoGuardAI/analyzer.py`
+  - [x] `RepoGuardAI/charts.py`
+  - [x] `RepoGuardAI/pdf_generator.py`
+  - [x] `RepoGuardAI/requirements.txt`
+  - [x] `RepoGuardAI/.streamlit/config.toml`
+- [x] Create Python virtual environment
+- [x] Install dependencies from `requirements.txt`
+- [x] Confirm app launches with `streamlit run app.py`
 
 Definition of done:
 - Basic Streamlit app opens without errors.
@@ -20,14 +20,14 @@ Definition of done:
 ---
 
 ## Phase 1 - Frontend Skeleton (Streamlit)
-- [ ] Build page layout and title/branding for RepoGuard AI
-- [ ] Add dark gradient custom CSS
-- [ ] Add GitHub URL input box
-- [ ] Add `🚀 ANALYZE` button
-- [ ] Add placeholder metric cards (4 cards)
-- [ ] Add placeholder section for 7 charts
-- [ ] Add placeholder refactoring priorities table
-- [ ] Add disabled PDF download button placeholder
+- [x] Build page layout and title/branding for RepoGuard AI
+- [x] Add dark gradient custom CSS
+- [x] Add GitHub URL input box
+- [x] Add `🚀 ANALYZE` button
+- [x] Add placeholder metric cards (4 cards)
+- [x] Add placeholder section for 7 charts
+- [x] Add placeholder refactoring priorities table
+- [x] Add disabled PDF download button placeholder
 
 Definition of done:
 - UI is visually complete with placeholders and no backend logic yet.
@@ -35,24 +35,24 @@ Definition of done:
 ---
 
 ## Phase 2 - GitHub Data Collector (analyzer.py, non-AI)
-- [ ] Setup PyGithub client using `GITHUB_TOKEN`
-- [ ] Parse owner/repo from GitHub URL
-- [ ] Fetch repository metadata:
-  - [ ] stars
-  - [ ] forks and forks_count
-  - [ ] open issues
-  - [ ] pull requests
-  - [ ] languages
-  - [ ] last commit date
-  - [ ] license info
-- [ ] Fetch top 20 contributors
-- [ ] Fetch commit activity summary
-- [ ] Return normalized Python dict
-- [ ] Add robust error handling for:
-  - [ ] invalid URL
-  - [ ] rate limit
-  - [ ] missing token
-  - [ ] private repo access failure
+- [x] Setup PyGithub client using `GITHUB_TOKEN`
+- [x] Parse owner/repo from GitHub URL
+- [x] Fetch repository metadata:
+  - [x] stars
+  - [x] forks and forks_count
+  - [x] open issues
+  - [x] pull requests
+  - [x] languages
+  - [x] last commit date
+  - [x] license info
+- [x] Fetch top 20 contributors
+- [x] Fetch commit activity summary
+- [x] Return normalized Python dict
+- [x] Add robust error handling for:
+  - [x] invalid URL
+  - [x] rate limit
+  - [x] missing token
+  - [x] private repo access failure
 
 Definition of done:
 - Running analyzer data collector returns clean structured repo data.
@@ -181,6 +181,6 @@ Definition of done:
 ---
 
 ## Immediate Next 3 Tasks
-- [ ] 1) Create full folder/file scaffold under `RepoGuardAI/`
-- [ ] 2) Build Streamlit UI skeleton in `app.py`
-- [ ] 3) Implement non-AI GitHub data collector in `analyzer.py`
+- [x] 1) Create full folder/file scaffold under `RepoGuardAI/`
+- [x] 2) Build Streamlit UI skeleton in `app.py`
+- [x] 3) Implement non-AI GitHub data collector in `analyzer.py`
