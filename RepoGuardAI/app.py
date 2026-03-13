@@ -4,6 +4,7 @@ import streamlit as st
 
 from analyzer import AnalysisError, analyze_repository
 from charts import build_all_charts
+from pdf_generator import generate_pdf_bytes
 
 
 st.set_page_config(page_title="RepoGuard AI", page_icon="🛡️", layout="wide")
@@ -132,6 +133,10 @@ def main() -> None:
         st.session_state.analysis_result = None
     if "analysis_error" not in st.session_state:
         st.session_state.analysis_error = None
+    if "pdf_report_bytes" not in st.session_state:
+        st.session_state.pdf_report_bytes = None
+    if "pdf_error" not in st.session_state:
+        st.session_state.pdf_error = None
 
     st.markdown(
         """
@@ -154,15 +159,21 @@ def main() -> None:
             st.warning("Please enter a GitHub repository URL.")
         else:
             st.session_state.analysis_error = None
-            with st.spinner("Analyzing repository with GitHub + GROK pipeline..."):
+            with st.spinner("Analyzing repository with GitHub + LLM pipeline..."):
                 try:
                     st.session_state.analysis_result = analyze_repository(repo_url.strip())
+                    st.session_state.pdf_report_bytes = None
+                    st.session_state.pdf_error = None
                 except AnalysisError as exc:
                     st.session_state.analysis_result = None
                     st.session_state.analysis_error = str(exc)
+                    st.session_state.pdf_report_bytes = None
+                    st.session_state.pdf_error = None
                 except Exception as exc:
                     st.session_state.analysis_result = None
                     st.session_state.analysis_error = f"Unexpected error: {exc}"
+                    st.session_state.pdf_report_bytes = None
+                    st.session_state.pdf_error = None
 
     analysis_result = st.session_state.analysis_result
     analysis_error = st.session_state.analysis_error
@@ -186,6 +197,7 @@ def main() -> None:
         ("dependency_risk", "7) Dependency Risk Bar Chart"),
     ]
     chart_map = {key: placeholder_figure(title) for key, title in chart_specs}
+    built_charts = None
     metric_subtext = "Awaiting analysis"
     priorities_df = pd.DataFrame(
         {
@@ -215,7 +227,7 @@ def main() -> None:
             metric_subtext = "Fallback estimate"
             st.warning(
                 f"AI fallback mode used for {fallback_count} task(s). "
-                "If values look repeated across repos, verify GITHUB_TOKEN, GROK_API_KEY, and model access."
+                "If values look repeated across repos, verify GITHUB_TOKEN, GROQ_API_KEY, and LLM model access."
             )
             with st.expander("Show AI failure details"):
                 if failed_tasks:
@@ -247,11 +259,20 @@ def main() -> None:
 
         try:
             built = build_all_charts(analysis_result)
+            built_charts = built
             for key, _ in chart_specs:
                 if key in built:
                     chart_map[key] = built[key]
         except Exception as exc:
             st.info(f"Chart engine fallback active: {exc}")
+
+        if st.session_state.pdf_report_bytes is None:
+            try:
+                st.session_state.pdf_report_bytes = generate_pdf_bytes(analysis_result, built_charts)
+                st.session_state.pdf_error = None
+            except Exception as exc:
+                st.session_state.pdf_report_bytes = None
+                st.session_state.pdf_error = f"PDF generation failed: {exc}"
 
     st.markdown('<div class="section-title">Repository Core Metrics</div>', unsafe_allow_html=True)
     metric_cols = st.columns(4)
@@ -274,13 +295,16 @@ def main() -> None:
     st.markdown('<div class="section-title">Top 5 Refactoring Priorities</div>', unsafe_allow_html=True)
     st.dataframe(priorities_df, width="stretch", hide_index=True)
 
+    if st.session_state.pdf_error:
+        st.warning(st.session_state.pdf_error)
+
     st.download_button(
         label="Download PDF Report",
-        data=b"",
+        data=st.session_state.pdf_report_bytes or b"",
         file_name="repo_health_report.pdf",
         mime="application/pdf",
-        disabled=True,
-        help="PDF generation will be enabled in Phase 6.",
+        disabled=st.session_state.pdf_report_bytes is None,
+        help="Download the generated repository health report.",
     )
 
 

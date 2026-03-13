@@ -113,19 +113,19 @@ Definition of done:
 ---
 
 ## Phase 6 - PDF Report Generator (pdf_generator.py)
-- [ ] Build PDF document structure and styling
-- [ ] Add cover page
-- [ ] Add executive summary
-- [ ] Add repository metadata section
-- [ ] Add health score breakdown
-- [ ] Add AI analysis tables
-- [ ] Export Plotly charts as PNG for embedding
-- [ ] Add contributor analysis section
-- [ ] Add security review section
-- [ ] Add technical debt summary
-- [ ] Add Top 25 refactoring tickets
-- [ ] Ensure total report is professional and multi-page (target ~20 pages)
-- [ ] Save as `repo_health_report.pdf`
+- [x] Build PDF document structure and styling
+- [x] Add cover page
+- [x] Add executive summary
+- [x] Add repository metadata section
+- [x] Add health score breakdown
+- [x] Add AI analysis tables
+- [x] Export Plotly charts as PNG for embedding
+- [x] Add contributor analysis section
+- [x] Add security review section
+- [x] Add technical debt summary
+- [x] Add Top 25 refactoring tickets
+- [x] Ensure total report is professional and multi-page (target ~20 pages)
+- [x] Save as `repo_health_report.pdf`
 
 Definition of done:
 - PDF is generated successfully and downloadable from app.

@@ -2,12 +2,14 @@ import os
 import re
 import time
 import json
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import requests
+from dotenv import load_dotenv
 from github import Github
 from github.GithubException import GithubException, RateLimitExceededException
 
@@ -16,8 +18,15 @@ class AnalysisError(Exception):
     """Raised when repository analysis cannot be completed."""
 
 
-GROK_API_URL = "https://api.x.ai/v1/chat/completions"
-GROK_MODEL = os.getenv("GROK_MODEL", "grok-4-fast-reasoning")
+load_dotenv(dotenv_path=Path(__file__).with_name(".env"), override=True)
+
+
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq")
+LLM_API_URL = os.getenv("LLM_API_URL", "https://api.groq.com/openai/v1/chat/completions")
+LLM_MODEL = os.getenv(
+    "LLM_MODEL",
+    os.getenv("GROQ_MODEL", os.getenv("GROK_MODEL", "llama-3.3-70b-versatile")),
+)
 
 AI_TASKS: Dict[str, str] = {
     "repository_health_score": (
@@ -72,7 +81,7 @@ AI_TASKS: Dict[str, str] = {
         "Generate risk-weighted refactoring priorities based only on provided repository context. "
         "Prioritize high-impact and high-risk items first. "
         "Return JSON keys: priorities (array of objects with keys title, area, effort_hours, risk, impact, recommendation). "
-        "Provide at least 10 items, sorted by priority descending, with realistic effort hours."
+        "Provide exactly 5 items, sorted by priority descending, with realistic effort hours."
     ),
 }
 
@@ -120,10 +129,14 @@ def _extract_json_object(raw_text: str) -> Dict[str, Any]:
     return parsed
 
 
-def _get_grok_api_key() -> str:
-    api_key = os.getenv("GROK_API_KEY", "").strip()
+def _get_llm_api_key() -> str:
+    api_key = os.getenv("GROQ_API_KEY", "").strip()
     if not api_key:
-        raise AnalysisError("Missing GROK_API_KEY environment variable.")
+        api_key = os.getenv("GROK_API_KEY", "").strip()
+    if not api_key:
+        api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        raise AnalysisError("Missing LLM API key. Set GROQ_API_KEY (preferred) or GROK_API_KEY.")
     return api_key
 
 
@@ -156,7 +169,7 @@ def _make_ai_context(repo_data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _grok_chat_json(prompt_key: str, prompt_instruction: str, ai_context: Dict[str, Any]) -> Dict[str, Any]:
-    api_key = _get_grok_api_key()
+    api_key = _get_llm_api_key()
 
     system_prompt = (
         "You are an expert repository auditor. Return strict JSON only, without markdown, without code fences. "
@@ -171,10 +184,13 @@ def _grok_chat_json(prompt_key: str, prompt_instruction: str, ai_context: Dict[s
         f"{json.dumps(ai_context, separators=(',', ':'), ensure_ascii=True)}"
     )
 
+    # refactoring_priorities returns a large array — give it more room to avoid truncation.
+    max_tokens = 2000 if prompt_key == "refactoring_priorities" else 600
+
     payload = {
-        "model": GROK_MODEL,
+        "model": LLM_MODEL,
         "temperature": 0.2,
-        "max_tokens": 500,
+        "max_tokens": max_tokens,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
@@ -191,7 +207,7 @@ def _grok_chat_json(prompt_key: str, prompt_instruction: str, ai_context: Dict[s
 
     for attempt in range(max_retries + 1):
         try:
-            response = requests.post(GROK_API_URL, headers=headers, json=payload, timeout=timeout_seconds)
+            response = requests.post(LLM_API_URL, headers=headers, json=payload, timeout=timeout_seconds)
             response.raise_for_status()
             response_json = response.json()
 
@@ -207,7 +223,7 @@ def _grok_chat_json(prompt_key: str, prompt_instruction: str, ai_context: Dict[s
                 time.sleep(0.6 * (2 ** attempt))
                 continue
 
-    raise AnalysisError(f"GROK request failed for {prompt_key}: {last_error}")
+    raise AnalysisError(f"LLM request failed for {prompt_key}: {last_error}")
 
 
 def _default_ai_section(task_key: str) -> Dict[str, Any]:
@@ -377,7 +393,7 @@ def _normalize_ai_section(task_key: str, raw_section: Dict[str, Any]) -> Dict[st
 
 def run_ai_analysis(repo_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Execute the 8 GROK prompts and return structured/validated AI output.
+    Execute the 8 LLM prompts and return structured/validated AI output.
 
     Uses bounded concurrency to keep runtime close to target (~15s).
     """
@@ -410,7 +426,8 @@ def run_ai_analysis(repo_data: Dict[str, Any]) -> Dict[str, Any]:
     elapsed_ms = int((time.time() - started_at) * 1000)
     fallback_count = len(failed_tasks)
     ai_result["meta"] = {
-        "model": GROK_MODEL,
+        "provider": LLM_PROVIDER,
+        "model": LLM_MODEL,
         "elapsed_ms": elapsed_ms,
         "target_runtime_seconds": 15,
         "fallback_count": fallback_count,
@@ -426,7 +443,7 @@ def analyze_repository(repo_url: str) -> Dict[str, Any]:
 
     Returns structured JSON:
     - repository_data: fetched from GitHub API
-    - ai_analysis: output of 8 GROK prompts with normalized schema
+    - ai_analysis: output of 8 LLM prompts with normalized schema
     - summary: dashboard-ready key metrics
     """
     pipeline_started = time.time()
@@ -541,7 +558,7 @@ def collect_repository_data(repo_url: str) -> Dict[str, Any]:
     """
     Collect non-AI repository data used by RepoGuard AI analysis.
 
-    Returns a normalized dictionary that Phase 3 can feed into GROK prompts.
+    Returns a normalized dictionary that Phase 3 can feed into LLM prompts.
     """
     owner, repo_name = _parse_repo_url(repo_url)
 
@@ -605,7 +622,8 @@ def collect_repository_data(repo_url: str) -> Dict[str, Any]:
 if __name__ == "__main__":
     # Quick manual smoke test:
     # export GITHUB_TOKEN=...
-    # export GROK_API_KEY=...
+    # export GROQ_API_KEY=...
+    # export LLM_MODEL=openai/gpt-oss-120b
     # python analyzer.py https://github.com/facebook/react
     import sys
 

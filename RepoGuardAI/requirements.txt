@@ -6,3 +6,5 @@ pandas
 networkx
 reportlab
 matplotlib
+kaleido
+python-dotenv
