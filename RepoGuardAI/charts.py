@@ -6,13 +6,18 @@ import plotly.graph_objects as go
 
 def _base_layout(title: str, height: int = 320) -> Dict[str, Any]:
     return {
-        "title": {"text": title, "font": {"size": 14}},
+        "title": {
+            "text": title,
+            "font": {"size": 13, "color": "#94c4de", "family": "Inter, sans-serif"},
+            "x": 0.02,
+        },
         "height": height,
-        "margin": {"l": 30, "r": 30, "t": 50, "b": 30},
-        "paper_bgcolor": "rgba(15, 23, 42, 0.85)",
-        "plot_bgcolor": "rgba(15, 23, 42, 0.85)",
-        "font": {"color": "#e2e8f0"},
+        "margin": {"l": 36, "r": 24, "t": 52, "b": 36},
+        "paper_bgcolor": "rgba(5, 15, 28, 0.92)",
+        "plot_bgcolor":  "rgba(5, 15, 28, 0.0)",
+        "font": {"color": "#94c4de", "family": "Inter, sans-serif", "size": 12},
     }
+
 
 
 def _build_radar_chart(analysis_data: Dict[str, Any]) -> go.Figure:
