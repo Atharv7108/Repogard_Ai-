@@ -81,14 +81,14 @@ Definition of done:
 ---
 
 ## Phase 4 - Chart Engine (charts.py)
-- [ ] Implement Radar Chart
-- [ ] Implement Contributor Network Graph using NetworkX
-- [ ] Implement Technical Debt Heatmap
-- [ ] Implement Language Distribution Pie
-- [ ] Implement Issue Age Timeline
-- [ ] Implement Security Risk Matrix
-- [ ] Implement Dependency Risk Bar Chart
-- [ ] Return all 7 Plotly figures in a dictionary
+- [x] Implement Radar Chart
+- [x] Implement Contributor Network Graph using NetworkX
+- [x] Implement Technical Debt Heatmap
+- [x] Implement Language Distribution Pie
+- [x] Implement Issue Age Timeline
+- [x] Implement Security Risk Matrix
+- [x] Implement Dependency Risk Bar Chart
+- [x] Return all 7 Plotly figures in a dictionary
 
 Definition of done:
 - 7 figures render correctly in Streamlit with sample data.
@@ -96,16 +96,16 @@ Definition of done:
 ---
 
 ## Phase 5 - Dashboard Wiring (app.py + analyzer.py + charts.py)
-- [ ] Connect `🚀 ANALYZE` button to analyzer pipeline
-- [ ] Show loading/progress state while analysis runs
-- [ ] Display final metrics:
-  - [ ] Health Score (%)
-  - [ ] Bus Factor (%)
-  - [ ] Technical Debt (hours)
-  - [ ] Security Score (%)
-- [ ] Render all 7 charts from `charts.py`
-- [ ] Render Top 5 Refactoring Priorities table
-- [ ] Store analysis result in session state
+- [x] Connect `🚀 ANALYZE` button to analyzer pipeline
+- [x] Show loading/progress state while analysis runs
+- [x] Display final metrics:
+  - [x] Health Score (%)
+  - [x] Bus Factor (%)
+  - [x] Technical Debt (hours)
+  - [x] Security Score (%)
+- [x] Render all 7 charts from `charts.py`
+- [x] Render Top 5 Refactoring Priorities table
+- [x] Store analysis result in session state
 
 Definition of done:
 - End-to-end analysis and dashboard display works from URL input.

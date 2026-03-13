@@ -3,6 +3,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from analyzer import AnalysisError, analyze_repository
+from charts import build_all_charts
 
 
 st.set_page_config(page_title="RepoGuard AI", page_icon="🛡️", layout="wide")
@@ -175,6 +176,16 @@ def main() -> None:
         "technical_debt_hours": "--",
         "security_score": "--",
     }
+    chart_specs = [
+        ("radar", "1) Repository Radar Chart"),
+        ("network", "2) Contributor Network Graph"),
+        ("debt_heatmap", "3) Technical Debt Heatmap"),
+        ("language_pie", "4) Language Distribution Pie Chart"),
+        ("issue_timeline", "5) Issue Age Timeline"),
+        ("security_matrix", "6) Security Risk Matrix"),
+        ("dependency_risk", "7) Dependency Risk Bar Chart"),
+    ]
+    chart_map = {key: placeholder_figure(title) for key, title in chart_specs}
     metric_subtext = "Awaiting analysis"
     priorities_df = pd.DataFrame(
         {
@@ -234,6 +245,14 @@ def main() -> None:
         if runtime is not None:
             st.success(f"Analysis complete in {runtime} ms")
 
+        try:
+            built = build_all_charts(analysis_result)
+            for key, _ in chart_specs:
+                if key in built:
+                    chart_map[key] = built[key]
+        except Exception as exc:
+            st.info(f"Chart engine fallback active: {exc}")
+
     st.markdown('<div class="section-title">Repository Core Metrics</div>', unsafe_allow_html=True)
     metric_cols = st.columns(4)
     with metric_cols[0]:
@@ -246,21 +265,11 @@ def main() -> None:
         show_metric_card("Security Score", str(summary["security_score"]), metric_subtext)
 
     st.markdown('<div class="section-title">Analysis Visualizations (7)</div>', unsafe_allow_html=True)
-    chart_titles = [
-        "1) Repository Radar Chart",
-        "2) Contributor Network Graph",
-        "3) Technical Debt Heatmap",
-        "4) Language Distribution Pie Chart",
-        "5) Issue Age Timeline",
-        "6) Security Risk Matrix",
-        "7) Dependency Risk Bar Chart",
-    ]
-
     left, right = st.columns(2)
-    for idx, title in enumerate(chart_titles):
+    for idx, (key, title) in enumerate(chart_specs):
         target_col = left if idx % 2 == 0 else right
         with target_col:
-            st.plotly_chart(placeholder_figure(title), config={"responsive": True})
+            st.plotly_chart(chart_map.get(key, placeholder_figure(title)), config={"responsive": True})
 
     st.markdown('<div class="section-title">Top 5 Refactoring Priorities</div>', unsafe_allow_html=True)
     st.dataframe(priorities_df, width="stretch", hide_index=True)
