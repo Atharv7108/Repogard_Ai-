@@ -57,10 +57,38 @@ def _styles() -> Dict[str, ParagraphStyle]:
     return {
         "title": ParagraphStyle("title", parent=sample["Heading1"], fontSize=24, leading=28, textColor=colors.HexColor("#0f172a")),
         "h2": ParagraphStyle("h2", parent=sample["Heading2"], fontSize=16, leading=20, textColor=colors.HexColor("#0f172a")),
-        "h3": ParagraphStyle("h3", parent=sample["Heading3"], fontSize=13, leading=16),
-        "body": ParagraphStyle("body", parent=sample["BodyText"], fontSize=10, leading=14),
+        "h3": ParagraphStyle("h3", parent=sample["Heading3"], fontSize=12, leading=15, textColor=colors.HexColor("#0f172a")),
+        "body": ParagraphStyle("body", parent=sample["BodyText"], fontSize=10, leading=14, textColor=colors.HexColor("#0f172a")),
         "small": ParagraphStyle("small", parent=sample["BodyText"], fontSize=9, leading=12, textColor=colors.HexColor("#334155")),
+        "muted": ParagraphStyle("muted", parent=sample["BodyText"], fontSize=9, leading=12, textColor=colors.HexColor("#64748b")),
     }
+
+
+def _score_band(score: Any) -> str:
+    try:
+        val = float(score)
+    except (TypeError, ValueError):
+        return "unknown"
+    if val >= 80:
+        return "strong"
+    if val >= 60:
+        return "moderate"
+    if val >= 40:
+        return "elevated risk"
+    return "critical"
+
+
+def _paragraph_list(items: List[str], styles: Dict[str, ParagraphStyle]) -> List[Paragraph]:
+    return [Paragraph(f"- {item}", styles["small"]) for item in items]
+
+
+def _draw_header_footer(canvas, doc) -> None:
+    canvas.saveState()
+    canvas.setFont("Helvetica", 9)
+    canvas.setFillColor(colors.HexColor("#475569"))
+    canvas.drawString(doc.leftMargin, A4[1] - 1.0 * cm, "RepoGuard AI - Repository Intelligence Report")
+    canvas.drawRightString(A4[0] - doc.rightMargin, 1.0 * cm, f"Page {doc.page}")
+    canvas.restoreState()
 
 
 def generate_pdf_report(
@@ -72,11 +100,22 @@ def generate_pdf_report(
     summary = analysis_data.get("summary", {})
     repo_data = analysis_data.get("repository_data", {})
     ai = analysis_data.get("ai_analysis", {})
+    health = ai.get("repository_health_score", {})
+    bus_factor = ai.get("bus_factor", {})
+    technical_debt = ai.get("technical_debt", {})
+    security_risk = ai.get("security_risk", {})
 
     with tempfile.TemporaryDirectory() as temp_dir:
         chart_paths = _export_plotly_chart_images(chart_figures, temp_dir)
 
-        doc = SimpleDocTemplate(output_path, pagesize=A4, rightMargin=1.5 * cm, leftMargin=1.5 * cm, topMargin=1.3 * cm, bottomMargin=1.3 * cm)
+        doc = SimpleDocTemplate(
+            output_path,
+            pagesize=A4,
+            rightMargin=1.5 * cm,
+            leftMargin=1.5 * cm,
+            topMargin=1.7 * cm,
+            bottomMargin=1.6 * cm,
+        )
         story: List[Any] = []
 
         # 1) Cover page
@@ -89,12 +128,22 @@ def generate_pdf_report(
         story.append(Paragraph(f"Generated: {_safe_text(datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC'))}", styles["body"]))
         story.append(Spacer(1, 1.2 * cm))
         story.append(Paragraph("Confidential engineering assessment for maintainability, resilience, and security planning.", styles["small"]))
+        story.append(Spacer(1, 0.5 * cm))
+        story.append(Paragraph("Prepared for engineering leadership to support roadmap, risk, and resourcing decisions.", styles["muted"]))
         story.append(PageBreak())
 
         # 2) Executive summary
         story.append(Paragraph("2. Executive Summary", styles["h2"]))
         story.append(Spacer(1, 0.4 * cm))
         story.append(Paragraph("This report summarizes repository quality signals, contributor resilience, technical debt, and security risk.", styles["body"]))
+        story.append(Spacer(1, 0.2 * cm))
+        story.append(
+            Paragraph(
+                "The scores below are directional indicators. They should be interpreted alongside repository context, "
+                "recent change velocity, and team ownership.",
+                styles["small"],
+            )
+        )
         story.append(Spacer(1, 0.3 * cm))
 
         summary_table = Table(
@@ -117,7 +166,19 @@ def generate_pdf_report(
             )
         )
         story.append(summary_table)
-        story.append(PageBreak())
+        story.append(Spacer(1, 0.3 * cm))
+        story.extend(
+            _paragraph_list(
+                [
+                    f"Health score indicates overall codebase stability ({_score_band(summary.get('health_score'))}).",
+                    f"Bus factor reflects contributor concentration risk ({_score_band(summary.get('bus_factor_percent'))}).",
+                    "Technical debt hours estimate the remediation effort to reduce friction and maintenance drag.",
+                    f"Security score captures vulnerability posture ({_score_band(summary.get('security_score'))}).",
+                ],
+                styles,
+            )
+        )
+        story.append(Spacer(1, 0.6 * cm))
 
         # 3) Repository metadata
         story.append(Paragraph("3. Repository Metadata", styles["h2"]))
@@ -148,19 +209,28 @@ def generate_pdf_report(
 
         # 4) Health score breakdown
         story.append(Paragraph("4. Health Score Breakdown", styles["h2"]))
-        health = ai.get("repository_health_score", {})
         story.append(Paragraph(f"Score: <b>{_safe_text(health.get('score'))}</b>", styles["body"]))
         story.append(Paragraph(f"Confidence: <b>{_safe_text(health.get('confidence'))}</b>", styles["body"]))
         story.append(Spacer(1, 0.2 * cm))
         story.append(Paragraph(f"Rationale: {_safe_text(health.get('rationale'))}", styles["small"]))
-        story.append(PageBreak())
+        story.append(Spacer(1, 0.2 * cm))
+        story.extend(
+            _paragraph_list(
+                [
+                    "Interpretation considers recent change volume, test coverage signals, and issue backlog health.",
+                    "Confidence reflects AI certainty based on repository metadata and code signals.",
+                ],
+                styles,
+            )
+        )
+        story.append(Spacer(1, 0.6 * cm))
 
         # 5) AI analysis tables
         story.append(Paragraph("5. AI Analysis Overview", styles["h2"]))
         rows = [["Dimension", "Score", "Risk/Notes"]]
-        rows.append(["Bus Factor", _safe_text(ai.get("bus_factor", {}).get("bus_factor_percent")), _safe_text(ai.get("bus_factor", {}).get("concentration_risk"))])
-        rows.append(["Technical Debt", _safe_text(ai.get("technical_debt", {}).get("estimated_hours")), _safe_text(ai.get("technical_debt", {}).get("debt_level"))])
-        rows.append(["Security", _safe_text(ai.get("security_risk", {}).get("security_score")), _safe_text(ai.get("security_risk", {}).get("risk_level"))])
+        rows.append(["Bus Factor", _safe_text(bus_factor.get("bus_factor_percent")), _safe_text(bus_factor.get("concentration_risk"))])
+        rows.append(["Technical Debt", _safe_text(technical_debt.get("estimated_hours")), _safe_text(technical_debt.get("debt_level"))])
+        rows.append(["Security", _safe_text(security_risk.get("security_score")), _safe_text(security_risk.get("risk_level"))])
         rows.append(["Maintainability", _safe_text(ai.get("code_maintainability", {}).get("maintainability_score")), "See hotspots"]) 
         rows.append(["Documentation", _safe_text(ai.get("documentation_quality", {}).get("documentation_score")), "See gaps"]) 
 
@@ -176,23 +246,52 @@ def generate_pdf_report(
             )
         )
         story.append(ai_table)
+        story.append(Spacer(1, 0.3 * cm))
+        story.append(Paragraph("Key Findings:", styles["h3"]))
+        story.extend(
+            _paragraph_list(
+                [
+                    f"Contributor concentration risk is {_safe_text(bus_factor.get('concentration_risk'))}.",
+                    f"Debt level is {_safe_text(technical_debt.get('debt_level'))} with estimated remediation of {_safe_text(technical_debt.get('estimated_hours'))} hours.",
+                    f"Security risk level is {_safe_text(security_risk.get('risk_level'))}.",
+                    "Maintainability and documentation scores indicate operational friction over time.",
+                ],
+                styles,
+            )
+        )
         story.append(PageBreak())
 
         # 6) Charts pages
         story.append(Paragraph("6. Visual Analytics", styles["h2"]))
         story.append(Spacer(1, 0.3 * cm))
-        story.append(Paragraph("The following pages embed generated chart snapshots.", styles["small"]))
+        story.append(Paragraph("The following pages embed generated chart snapshots with context notes.", styles["small"]))
+        story.append(Spacer(1, 0.2 * cm))
+        story.extend(
+            _paragraph_list(
+                [
+                    "Radar chart highlights strengths and gaps across health dimensions.",
+                    "Language distribution indicates maintenance burden across stacks.",
+                    "Contributor network shows dependency risk on key individuals.",
+                    "Issue age timeline surfaces backlog aging and response velocity.",
+                ],
+                styles,
+            )
+        )
         story.append(PageBreak())
 
         for idx, chart_path in enumerate(chart_paths, start=1):
             story.append(Paragraph(f"Chart {idx}", styles["h3"]))
-            story.append(Spacer(1, 0.25 * cm))
-            story.append(Image(chart_path, width=17.2 * cm, height=9.3 * cm))
-            story.append(PageBreak())
+            story.append(Spacer(1, 0.15 * cm))
+            story.append(Image(chart_path, width=17.2 * cm, height=8.2 * cm))
+            if idx % 2 == 0 and idx != len(chart_paths):
+                story.append(PageBreak())
+            else:
+                story.append(Spacer(1, 0.35 * cm))
 
         # 7) Contributor analysis
         contributors = repo_data.get("top_20_contributors", [])
         story.append(Paragraph("7. Contributor Analysis", styles["h2"]))
+        story.append(Paragraph("Top contributors and activity concentration are used to estimate resilience to team changes.", styles["small"]))
         top_rows = [["Login", "Contributions"]]
         for item in contributors[:15]:
             top_rows.append([_safe_text(item.get("login")), _safe_text(item.get("contributions"))])
@@ -208,7 +307,7 @@ def generate_pdf_report(
             )
         )
         story.append(contrib_table)
-        story.append(PageBreak())
+        story.append(Spacer(1, 0.6 * cm))
 
         # 8) Security review
         sec = ai.get("security_risk", {})
@@ -217,13 +316,14 @@ def generate_pdf_report(
         story.append(Paragraph(f"Security Score: <b>{_safe_text(sec.get('security_score'))}</b>", styles["body"]))
         story.append(Paragraph(f"Risk Level: <b>{_safe_text(sec.get('risk_level'))}</b>", styles["body"]))
         story.append(Spacer(1, 0.2 * cm))
+        story.append(Paragraph("Security posture combines dependency risk, vulnerability indicators, and access hygiene signals.", styles["small"]))
         story.append(Paragraph("Critical Findings:", styles["h3"]))
         if isinstance(findings, list) and findings:
             for finding in findings[:15]:
                 story.append(Paragraph(f"- {_safe_text(finding)}", styles["small"]))
         else:
             story.append(Paragraph("- No critical findings reported by AI layer.", styles["small"]))
-        story.append(PageBreak())
+        story.append(Spacer(1, 0.6 * cm))
 
         # 9) Technical debt summary
         td = ai.get("technical_debt", {})
@@ -231,6 +331,7 @@ def generate_pdf_report(
         story.append(Paragraph(f"Estimated Debt: <b>{_safe_text(td.get('estimated_hours'))} hours</b>", styles["body"]))
         story.append(Paragraph(f"Debt Level: <b>{_safe_text(td.get('debt_level'))}</b>", styles["body"]))
         story.append(Spacer(1, 0.2 * cm))
+        story.append(Paragraph("Focus areas below represent high friction modules or hotspots that slow delivery.", styles["small"]))
         for area in td.get("top_debt_areas", [])[:20] if isinstance(td.get("top_debt_areas", []), list) else []:
             story.append(Paragraph(f"- {_safe_text(area)}", styles["small"]))
         story.append(PageBreak())
@@ -238,6 +339,7 @@ def generate_pdf_report(
         # 10) Top 25 refactoring tickets
         priorities = ai.get("refactoring_priorities", {}).get("priorities", [])
         story.append(Paragraph("10. Top 25 Refactoring Tickets", styles["h2"]))
+        story.append(Paragraph("Recommended actions prioritized by risk reduction, delivery acceleration, and stability impact.", styles["small"]))
         ticket_rows = [["#", "Title", "Area", "Effort(h)", "Risk", "Impact"]]
         if isinstance(priorities, list) and priorities:
             for idx, item in enumerate(priorities[:25], start=1):
@@ -267,8 +369,58 @@ def generate_pdf_report(
             )
         )
         story.append(tickets_table)
+        story.append(PageBreak())
 
-        doc.build(story)
+        # 11) Recommendations and next steps
+        story.append(Paragraph("11. Recommendations and Next Steps", styles["h2"]))
+        story.append(Paragraph("Priority actions aligned to mitigate risk and improve delivery outcomes.", styles["small"]))
+        story.extend(
+            _paragraph_list(
+                [
+                    "Establish ownership coverage for key modules to reduce bus factor exposure.",
+                    "Schedule targeted refactors that reduce cycle time in high change areas.",
+                    "Address critical security findings and review dependency update cadence.",
+                    "Improve documentation for onboarding, runbooks, and architectural decisions.",
+                ],
+                styles,
+            )
+        )
+        story.append(Spacer(1, 0.6 * cm))
+
+        # 12) Methodology and definitions
+        story.append(Paragraph("12. Methodology and Definitions", styles["h2"]))
+        story.append(
+            Paragraph(
+                "Scores are derived from repository metadata, contributor activity signals, dependency indicators, "
+                "issue and pull request patterns, and AI-based assessment of risks.",
+                styles["body"],
+            )
+        )
+        story.append(Spacer(1, 0.2 * cm))
+        story.extend(
+            _paragraph_list(
+                [
+                    "Health Score: composite signal of maintainability, change resilience, and operational hygiene.",
+                    "Bus Factor: percentage of contributions concentrated in the top contributor cohort.",
+                    "Technical Debt: estimated remediation effort to reduce churn and complexity hotspots.",
+                    "Security Score: relative risk posture based on code and dependency indicators.",
+                ],
+                styles,
+            )
+        )
+        story.append(Spacer(1, 0.6 * cm))
+
+        # 13) Disclaimer
+        story.append(Paragraph("13. Disclaimer", styles["h2"]))
+        story.append(
+            Paragraph(
+                "This report provides decision support and should be validated with code review, "
+                "security scanning, and engineering judgment.",
+                styles["small"],
+            )
+        )
+
+        doc.build(story, onFirstPage=_draw_header_footer, onLaterPages=_draw_header_footer)
 
     return output_path
 

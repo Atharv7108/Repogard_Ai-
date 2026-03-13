@@ -1,6 +1,7 @@
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+import textwrap
 
 from analyzer import AnalysisError, analyze_repository
 from charts import build_all_charts
@@ -40,14 +41,8 @@ def placeholder_figure(title: str) -> go.Figure:
 
 
 def section_header(icon: str, title: str) -> None:
-    st.markdown(
-        f"""<div class="sec-header">
-
-            <span class="sec-title">{title}</span>
-            <div class="sec-line"></div>
-        </div>""",
-        unsafe_allow_html=True,
-    )
+    html = f'<div class="sec-header"><span class="sec-title">{title}</span><div class="sec-line"></div></div>'
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def risk_badge_html(risk: str) -> str:
@@ -179,22 +174,24 @@ def main() -> None:
     if "analysis_running" not in st.session_state:
         st.session_state.analysis_running = False
 
-        # ── Top Navigation / Header ────────────────
-        st.markdown(
-                """
-                <div class="top-nav">
-                    <div class="nav-left">
-                        <div class="brand">RepoGuard <span class="brand-accent">AI</span></div>
-                        <div class="nav-sub">AI-powered GitHub repository intelligence</div>
-                    </div>
-                    <div class="nav-right">
-                        <a class="icon-btn" href="#" title="Open on GitHub">🐙</a>
-                        <a class="icon-btn" href="#" title="Settings">⚙️</a>
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-        )
+    # ── Top Navigation / Header ────────────────
+    st.markdown(
+        textwrap.dedent(
+            """
+            <div class="top-nav">
+              <div class="nav-left">
+                <div class="brand">RepoGuard <span class="brand-accent">AI</span></div>
+                <div class="nav-sub">AI-powered GitHub repository intelligence</div>
+              </div>
+              <div class="nav-right">
+                <a class="icon-btn" href="#" title="Open on GitHub">🐙</a>
+                <a class="icon-btn" href="#" title="Settings">⚙️</a>
+              </div>
+            </div>
+            """
+        ),
+        unsafe_allow_html=True,
+    )
 
     # ── Input Panel ────────────────────────────
     st.markdown('<div class="input-panel">', unsafe_allow_html=True)
