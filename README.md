@@ -2,27 +2,35 @@
 
 **RepoGuard AI** is a premium, AI-powered repository intelligence platform designed for engineering visibility. It synthesizes repository metadata, commit history, and code patterns into actionable insights regarding health, security, and maintenance risk.
 
-## 🚀 Technology Stack
+## 🚀 Technology Stack (Used + Why)
 
-### Core Frameworks
-- **[Streamlit](https://streamlit.io/) (Python)**: Powers the main analysis engine and the dynamic, data-rich user interface.
-- **[React](https://reactjs.org/) + [Vite](https://vitejs.dev/)**: Used for the external Authentication (Login/Signup) and Pricing SPA (Single-Page Application).
-- **[Node.js](https://nodejs.org/) & [Express](https://expressjs.com/)**: Provides a microservice layer for unified authentication and user profile management.
+### Frontend Experience
+- **[React 18](https://reactjs.org/)**: Built for the Login/Pricing SPA and checkout flow. Chosen for fast component-based UI updates and easy routing.
+- **[Vite](https://vitejs.dev/)**: Development and build tool for the React app. Chosen for very fast startup and lightweight production bundles.
+- **[React Router](https://reactrouter.com/)**: Handles `/login` and `/pricing` SPA navigation cleanly.
+- **Vanilla CSS**: Custom visual system (glass effects, animation, gradients) without heavy UI frameworks, keeping bundle size and styling control tight.
 
-### AI & Analysis
-- **[LiteLLM](https://github.com/BerriAI/litellm) / Google Gemini**: Drives the "Project Intelligence" engine, providing AI summaries and refactoring priorities.
-- **Repository Scanning**: Custom Python logic for contributor risk mapping and health scoring.
+### Python Analysis Layer
+- **[Streamlit](https://streamlit.io/)**: Main analysis interface and dashboard rendering. Chosen for rapid shipping of data-rich UI.
+- **[PyGithub](https://pygithub.readthedocs.io/)** + **[requests](https://docs.python-requests.org/)**: GitHub API access and service-to-service HTTP calls.
+- **[pandas](https://pandas.pydata.org/)**: Metric shaping and tabular data handling.
+- **[plotly](https://plotly.com/python/)** + **[networkx](https://networkx.org/)**: Interactive charts and contributor/network analysis views.
+- **[reportlab](https://www.reportlab.com/)** + **[matplotlib](https://matplotlib.org/)** + **[kaleido](https://github.com/plotly/Kaleido)**: PDF report generation and chart image export.
 
-### Backend & Security
-- **[SQLite](https://www.sqlite.org/)**: Persistent storage for user profiles, analysis history, and subscription plans.
-- **[JWT](https://jwt.io/) (JSON Web Tokens)**: Secure, cross-service session management (bridging the Hybrid Streamlit/React architecture).
-- **[bcrypt](https://github.com/pyca/bcrypt)**: Industry-standard password hashing.
+### API, Auth, and Payments
+- **[Node.js](https://nodejs.org/) + [Express](https://expressjs.com/)**: Auth and payment API (`/api/login`, `/api/register`, `/api/upgrade-plan`, Razorpay order endpoints).
+- **[jwt-simple](https://www.npmjs.com/package/jwt-simple)**: Lightweight JWT encode/decode in Node API.
+- **[bcryptjs](https://www.npmjs.com/package/bcryptjs)** + **[bcrypt](https://github.com/pyca/bcrypt)**: Password hashing support across Node and Python auth utilities.
+- **[Razorpay](https://razorpay.com/docs/)**: Upgrade payment checkout and order creation flow.
+- **[cors](https://www.npmjs.com/package/cors)** + **[dotenv](https://www.npmjs.com/package/dotenv)** + **[python-dotenv](https://pypi.org/project/python-dotenv/)**: Cross-origin handling and environment-based secret management.
 
-### Design & Aesthetics
-- **Vanilla CSS**: Curated premium design system featuring:
-    - **Glassmorphism**: Sleek, transparent UI layers.
-    - **Micro-animations**: Smooth transitions and hover effects for a responsive feel.
-    - **High-Contrast Dark Mode**: Optimized for readability and professional aesthetics.
+### Data Storage
+- **[SQLite](https://www.sqlite.org/)** (`repoguard.db`): Local relational storage for app data and hackathon simplicity.
+- **JSON stores** (`.users.json`, `.usage.json`): Lightweight auth/usage persistence used by the current Node flow.
+
+### AI Provider
+- **Groq (OpenAI-compatible API)**: Used for Project Intelligence tasks through configured model endpoint.
+- Why: low-latency LLM inference and straightforward API integration with retry/fallback logic in analyzer.
 
 ---
 
@@ -43,8 +51,11 @@ RepoGuard AI uses a **Hybrid Frontend Architecture**:
 - **Node.js 18+**
 - Environment Variables:
     - `REPOGUARD_JWT_SECRET`: Shared secret for token signing.
-    - `REACT_API_BASE`: Base URL for the Node.js microservice.
-    - `GOOGLE_API_KEY`: Required for Gemini-driven AI analysis.
+    - `GITHUB_TOKEN`: GitHub API token used by repository analyzer.
+    - `GROQ_API_KEY`: Key for AI summary/insight generation.
+    - `LLM_PROVIDER`, `LLM_API_URL`, `LLM_MODEL`: LLM routing and model configuration.
+    - `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`: Payment configuration (server-side).
+    - `REACT_API_BASE`: Streamlit-to-API base URL.
 
 ### Running the App
 ```bash
