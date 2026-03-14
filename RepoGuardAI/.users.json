@@ -1,0 +1,17 @@
+{
+  "ath@gmail.com": {
+    "email": "ath@gmail.com",
+    "password_hash": "$2b$12$EZYpame3LYdXB5A3LUudfu7Nb..6.fQA.6emw8tpVUxYqSW9QUZMC",
+    "plan": "free"
+  },
+  "athar@gmail.com": {
+    "email": "athar@gmail.com",
+    "password_hash": "$2b$12$5wTsRLHL.KKW8nlw9/V.vuGzm.WZIwCiAwKaw3ngm4taWXjp3351a",
+    "plan": "free"
+  },
+  "atharv@gmail.com": {
+    "email": "atharv@gmail.com",
+    "password_hash": "$2b$12$8bqZ0t4fRI89lfQbkeP.peln8mvid1a55NVq8nZuDfhyBO.ZIvWpG",
+    "plan": "free"
+  }
+}
