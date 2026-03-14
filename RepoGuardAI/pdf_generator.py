@@ -3,6 +3,7 @@ import os
 import tempfile
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from xml.sax.saxutils import escape
 
 import matplotlib.pyplot as plt
 from reportlab.lib import colors
@@ -28,12 +29,13 @@ def _mk_placeholder_chart(title: str, destination: str) -> str:
     return destination
 
 
-def _export_plotly_chart_images(chart_figures: Optional[Dict[str, Any]], temp_dir: str) -> List[str]:
-    exported_paths: List[str] = []
+def _export_plotly_chart_images(chart_figures: Optional[Dict[str, Any]], temp_dir: str) -> List[Dict[str, str]]:
+    exported_items: List[Dict[str, str]] = []
     if not isinstance(chart_figures, dict) or len(chart_figures) == 0:
         for idx in range(1, 8):
-            exported_paths.append(_mk_placeholder_chart(f"Chart {idx}", os.path.join(temp_dir, f"chart_{idx}.png")))
-        return exported_paths
+            placeholder_path = _mk_placeholder_chart(f"Chart {idx}", os.path.join(temp_dir, f"chart_{idx}.png"))
+            exported_items.append({"key": f"placeholder_{idx}", "title": f"Chart {idx}", "path": placeholder_path})
+        return exported_items
 
     for idx, (key, figure) in enumerate(chart_figures.items(), start=1):
         image_path = os.path.join(temp_dir, f"chart_{idx}_{key}.png")
@@ -41,15 +43,85 @@ def _export_plotly_chart_images(chart_figures: Optional[Dict[str, Any]], temp_di
             image_bytes = figure.to_image(format="png", width=1300, height=700, scale=1)
             with open(image_path, "wb") as fp:
                 fp.write(image_bytes)
-            exported_paths.append(image_path)
+            exported_items.append({"key": str(key), "title": str(key).replace("_", " ").title(), "path": image_path})
         except Exception:
-            exported_paths.append(_mk_placeholder_chart(f"{key}", image_path))
+            placeholder_path = _mk_placeholder_chart(f"{key}", image_path)
+            exported_items.append({"key": str(key), "title": str(key).replace("_", " ").title(), "path": placeholder_path})
 
-    while len(exported_paths) < 7:
-        idx = len(exported_paths) + 1
-        exported_paths.append(_mk_placeholder_chart(f"Chart {idx}", os.path.join(temp_dir, f"chart_{idx}.png")))
+    while len(exported_items) < 7:
+        idx = len(exported_items) + 1
+        placeholder_path = _mk_placeholder_chart(f"Chart {idx}", os.path.join(temp_dir, f"chart_{idx}.png"))
+        exported_items.append({"key": f"placeholder_{idx}", "title": f"Chart {idx}", "path": placeholder_path})
 
-    return exported_paths[:7]
+    return exported_items[:7]
+
+
+def _chart_title(key: str, fallback_title: str) -> str:
+    mapping = {
+        "radar": "Repository Radar",
+        "network": "Contributor Network",
+        "language_pie": "Language Distribution",
+        "security_matrix": "Security Risk Matrix",
+        "dependency_risk": "Dependency Risk",
+    }
+    return mapping.get(key, fallback_title)
+
+
+def _chart_narrative(key: str, analysis_data: Dict[str, Any]) -> str:
+    summary = analysis_data.get("summary", {}) if isinstance(analysis_data, dict) else {}
+    repo_data = analysis_data.get("repository_data", {}) if isinstance(analysis_data, dict) else {}
+    ai = analysis_data.get("ai_analysis", {}) if isinstance(analysis_data, dict) else {}
+
+    health = _safe_text(summary.get("health_score"))
+    security = _safe_text(summary.get("security_score"))
+    bus = _safe_text(summary.get("bus_factor_percent"))
+    debt = _safe_text(summary.get("technical_debt_hours"))
+
+    languages = repo_data.get("languages", {})
+    lang_text = ""
+    if isinstance(languages, dict) and languages:
+        total = sum(v for v in languages.values() if isinstance(v, (int, float))) or 1
+        top = sorted(languages.items(), key=lambda x: x[1], reverse=True)[:3]
+        lang_parts = [f"{k} ({(v / total) * 100:.1f}%)" for k, v in top if isinstance(v, (int, float))]
+        lang_text = ", ".join(lang_parts)
+
+    risk_level = _safe_text(ai.get("security_risk", {}).get("risk_level"))
+    debt_level = _safe_text(ai.get("technical_debt", {}).get("debt_level"))
+    concentration = _safe_text(ai.get("bus_factor", {}).get("concentration_risk"))
+
+    narratives = {
+        "radar": (
+            f"This radar chart compares core repository dimensions in one view. Current headline signals are "
+            f"Health {health}%, Security {security}%, and Bus Factor {bus}%. Use it to spot imbalance quickly "
+            f"and prioritize dimensions that lag behind the others."
+        ),
+        "network": (
+            f"The contributor network visual highlights ownership spread and dependency on key individuals. "
+            f"Bus factor is {bus}% with concentration risk marked as {concentration}. If ownership appears clustered, "
+            f"reduce delivery risk by rotating maintainers and documenting critical workflows."
+        ),
+        "language_pie": (
+            "Language distribution indicates where most maintenance effort will accumulate. "
+            + (f"Top observed stack share: {lang_text}. " if lang_text else "")
+            + "A highly skewed distribution can simplify standards but may create single-stack bottlenecks."
+        ),
+        "security_matrix": (
+            f"Security matrix contextualizes severity and likelihood patterns from repository metadata. "
+            f"Current security score is {security}% with overall risk level {risk_level}. Use this to sequence fixes by "
+            f"criticality before broader hardening work."
+        ),
+        "dependency_risk": (
+            f"Dependency risk view reflects potential operational drag from outdated or vulnerable package surfaces. "
+            f"Technical debt is estimated at {debt} hours and debt level is {debt_level}. Focus first on dependencies "
+            f"that are both high-impact and frequently touched."
+        ),
+    }
+
+    return narratives.get(
+        key,
+        "This chart provides a supporting lens for repository health. Correlate it with the executive metrics and "
+        "AI findings to determine actionable engineering priorities.",
+    )
 
 
 def _styles() -> Dict[str, ParagraphStyle]:
@@ -149,7 +221,7 @@ def generate_pdf_report(
     security_risk = ai.get("security_risk", {})
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        chart_paths = _export_plotly_chart_images(chart_figures, temp_dir)
+        chart_items = _export_plotly_chart_images(chart_figures, temp_dir)
 
         doc = SimpleDocTemplate(
             output_path,
@@ -357,26 +429,51 @@ def generate_pdf_report(
         # 6) Charts pages
         story.append(Paragraph("6. Visual Analytics", styles["h2"]))
         story.append(Spacer(1, 0.3 * cm))
-        story.append(Paragraph("The following pages embed generated chart snapshots with context notes.", styles["small"]))
+        story.append(Paragraph("The following pages embed generated chart snapshots with interpretation and recommended action focus.", styles["small"]))
         story.append(Spacer(1, 0.2 * cm))
         story.extend(
             _paragraph_list(
                 [
-                    "Radar chart highlights strengths and gaps across health dimensions.",
-                    "Language distribution indicates maintenance burden across stacks.",
-                    "Contributor network shows dependency risk on key individuals.",
-                    "Issue age timeline surfaces backlog aging and response velocity.",
+                    "Each chart includes explanation text tied to current repository scores.",
+                    "Use the narrative callouts to convert visuals into engineering actions.",
+                    "Correlate chart insights with refactoring priorities in section 10.",
                 ],
                 styles,
             )
         )
         story.append(PageBreak())
 
-        for idx, chart_path in enumerate(chart_paths, start=1):
-            story.append(Paragraph(f"Chart {idx}", styles["h3"]))
+        for idx, item in enumerate(chart_items, start=1):
+            chart_key = item.get("key", f"chart_{idx}")
+            chart_title = _chart_title(chart_key, item.get("title", f"Chart {idx}"))
+            chart_path = item.get("path", "")
+            narrative = _chart_narrative(chart_key, analysis_data)
+
+            story.append(Paragraph(f"Chart {idx}: {escape(chart_title)}", styles["h3"]))
             story.append(Spacer(1, 0.15 * cm))
-            story.append(Image(chart_path, width=17.2 * cm, height=8.2 * cm))
-            if idx % 2 == 0 and idx != len(chart_paths):
+
+            chart_image = Image(chart_path, width=10.9 * cm, height=6.3 * cm)
+            chart_text = Paragraph(escape(narrative), styles["small"])
+            chart_panel = Table(
+                [[chart_image, chart_text]],
+                colWidths=[11.2 * cm, 4.4 * cm],
+                hAlign="LEFT",
+            )
+            chart_panel.setStyle(
+                TableStyle(
+                    [
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+                        ("BOX", (0, 0), (-1, -1), 0.35, colors.HexColor("#cbd5e1")),
+                        ("PADDING", (0, 0), (-1, -1), 6),
+                    ]
+                )
+            )
+            story.append(chart_panel)
+            story.append(Spacer(1, 0.2 * cm))
+            story.append(Paragraph("Action note: validate this visual against current sprint priorities and ownership constraints.", styles["muted"]))
+
+            if idx % 2 == 0 and idx != len(chart_items):
                 story.append(PageBreak())
             else:
                 story.append(Spacer(1, 0.35 * cm))

@@ -11,6 +11,19 @@ export default function Login(){
   const [pw2, setPw2] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
   const nav = useNavigate()
+  // Keep login/register flow pinned to the free app.
+  const STREAMLIT_LOGIN_BASE = import.meta.env.VITE_STREAMLIT_LOGIN_BASE || 'http://localhost:8516'
+
+  const redirectToFreeAnalysis = (token: string) => {
+    try {
+      const u = new URL(STREAMLIT_LOGIN_BASE)
+      u.searchParams.set('token', token)
+      u.searchParams.set('view', 'analysis')
+      window.location.href = u.toString()
+    } catch (_) {
+      window.location.href = `${STREAMLIT_LOGIN_BASE.replace(/\/+$/,'')}/?token=${encodeURIComponent(token)}&view=analysis`
+    }
+  }
 
   const handleRegister = async(e:any)=>{
     e.preventDefault()
@@ -37,16 +50,15 @@ export default function Login(){
       // Request a short-lived Streamlit token and open Streamlit analysis.
       // If that fails, fall back to opening Streamlit with the primary JWT.
       try {
-        const STREAMLIT_BASE = import.meta.env.VITE_STREAMLIT_BASE || 'http://localhost:8516'
         const stRes = await fetch(`${API_BASE}/api/streamlit-token`, { method: 'POST', headers: { 'Authorization': `Bearer ${data.token}`, 'Content-Type':'application/json' }, body: JSON.stringify({}) })
         let stData:any = {}
         try { stData = await stRes.json() } catch(_) { stData = {} }
         if (stRes.ok && stData.token) {
-          window.location.href = `${STREAMLIT_BASE}/?token=${encodeURIComponent(stData.token)}&view=analysis`
+          redirectToFreeAnalysis(stData.token)
           return
         }
         // fallback: open Streamlit with the original JWT if short-lived token not available
-        window.location.href = `${STREAMLIT_BASE}/?token=${encodeURIComponent(data.token)}&view=analysis`
+        redirectToFreeAnalysis(data.token)
         return
       } catch(err:any){
         // if anything goes wrong, navigate to the React analysis page as an ultimate fallback
@@ -77,15 +89,14 @@ export default function Login(){
       setMsg('Welcome back')
       // Try to get Streamlit token and open Streamlit analysis; fallback to primary JWT
       try {
-        const STREAMLIT_BASE = import.meta.env.VITE_STREAMLIT_BASE || 'http://localhost:8516'
         const stRes = await fetch(`${API_BASE}/api/streamlit-token`, { method: 'POST', headers: { 'Authorization': `Bearer ${data.token}`, 'Content-Type':'application/json' }, body: JSON.stringify({}) })
         let stData:any = {}
         try { stData = await stRes.json() } catch(_) { stData = {} }
         if (stRes.ok && stData.token) {
-          window.location.href = `${STREAMLIT_BASE}/?token=${encodeURIComponent(stData.token)}&view=analysis`
+          redirectToFreeAnalysis(stData.token)
           return
         }
-        window.location.href = `${STREAMLIT_BASE}/?token=${encodeURIComponent(data.token)}&view=analysis`
+        redirectToFreeAnalysis(data.token)
         return
       } catch(err:any){
         setMsg('Token redirect failed, opening in-app analysis')
