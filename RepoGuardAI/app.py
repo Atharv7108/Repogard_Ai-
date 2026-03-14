@@ -61,6 +61,10 @@ def risk_badge_html(risk: str) -> str:
     return f'<span class="risk-badge {cls}">{risk.upper()}</span>'
 
 
+def _is_pro_variant() -> bool:
+    return str(os.environ.get("PLANS_VARIANT", "")).strip() == "30"
+
+
 def show_metric_cards(summary: dict, subtext: str) -> None:
     h = summary.get("health_score", "--")
     b = summary.get("bus_factor_percent", "--")
@@ -425,7 +429,7 @@ def show_login_page() -> None:
                 <a class="landing-header-brand" href="?view=landing">RepoGuard</a>
                 <div class="landing-header-nav">
                     <a class="landing-header-link" href="?view=landing">Home</a>
-                    <a class="landing-header-link" href="?view=analysis&pricing=1">Pricing</a>
+                    <a class="landing-header-link" href="?view=analysis&pricing=1">Upgrade</a>
                 </div>
             </div>
         </div>
@@ -482,7 +486,7 @@ def render_auth_header() -> None:
         )
         col_pr, col_lg = st.columns([1, 1])
         with col_pr:
-            if st.button("💎 Pricing", key="hdr_pricing", use_container_width=True):
+            if st.button("💎 Upgrade", key="hdr_pricing", use_container_width=True):
                 st.session_state["show_pricing"] = not st.session_state.get("show_pricing", False)
         with col_lg:
             if st.button("Log Out", key="hdr_logout", use_container_width=True):
@@ -490,28 +494,42 @@ def render_auth_header() -> None:
                     st.session_state[k] = None
                 st.rerun()
     else:
+        if _is_pro_variant():
+            st.markdown(
+                """
+                <div class="auth-header-bar">
+                  <span class="auth-user-email">👤 Guest Session</span>
+                  <span class="auth-plan-badge" style="background:#7c3aed">PRO</span>
+                  <span class="auth-token-info">Direct Pro view enabled</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            return
         col_l, col_p, _ = st.columns([1, 1, 5])
         with col_l:
             if st.button("🔐 Log In", key="hdr_login", use_container_width=True):
-                react_login = os.environ.get('REACT_LOGIN_URL', 'http://localhost:5175/login')
+                react_login = os.environ.get('REACT_LOGIN_URL', 'http://localhost:5173/login')
                 st.markdown(f"<script>window.location.href=\"{react_login}\";</script>", unsafe_allow_html=True)
                 return
         with col_p:
-            if st.button("💎 Pricing", key="hdr_pricing2", use_container_width=True):
+            if st.button("💎 Upgrade", key="hdr_pricing2", use_container_width=True):
                 st.session_state["show_pricing"] = not st.session_state.get("show_pricing", False)
                 st.session_state["show_auth_modal"] = False
 
 
 def show_landing_page() -> None:
         analysis_target = os.environ.get("STREAMLIT_ANALYSIS_URL", "?view=analysis")
+        react_login = os.environ.get('REACT_LOGIN_URL', 'http://localhost:5173/login')
+        react_pricing = os.environ.get('REACT_PRICING_URL', 'http://localhost:5173/pricing')
         st.markdown(
                 f"""
                 <div class="landing-header">
                     <div class="landing-header-inner">
                         <a class="landing-header-brand" href="?view=landing">RepoGuard</a>
                         <div class="landing-header-nav">
-                            <a class="landing-header-link" href="http://localhost:5175/login">Login</a>
-                            <a class="landing-header-link" href="http://localhost:5175/pricing">Pricing</a>
+                            <a class="landing-header-link" href="{react_login}">Login</a>
+                            <a class="landing-header-link" href="{react_pricing}">Upgrade</a>
                             <a class="landing-header-btn" href="{analysis_target}">Try for Free</a>
                         </div>
                     </div>
@@ -614,12 +632,12 @@ def main() -> None:
         st.session_state["show_auth_modal"] = False
         st.session_state["show_pricing"] = False
     if pricing_param:
-        react_pricing = os.environ.get('REACT_PRICING_URL', 'http://localhost:5175/pricing')
+        react_pricing = os.environ.get('REACT_PRICING_URL', 'http://localhost:5173/pricing')
         st.markdown(
             f"""
             <meta http-equiv="refresh" content="0; url={react_pricing}">
             <script>window.location.href="{react_pricing}";</script>
-            <div style="padding:16px">Redirecting to <a href="{react_pricing}">Pricing</a>...</div>
+            <div style="padding:16px">Redirecting to <a href="{react_pricing}">Upgrade</a>...</div>
             """,
             unsafe_allow_html=True,
         )
@@ -627,7 +645,7 @@ def main() -> None:
 
     if view == "login":
         # Redirect Streamlit landing to React login page for the SPA
-        react_login = os.environ.get('REACT_LOGIN_URL', 'http://localhost:5175/login')
+        react_login = os.environ.get('REACT_LOGIN_URL', 'http://localhost:5173/login')
         st.markdown(
             f"""
             <meta http-equiv="refresh" content="0; url={react_login}">
@@ -660,7 +678,7 @@ def main() -> None:
                     <div class="nav-sub">AI-powered GitHub repository intelligence</div>
                 </div>
                 <div class="nav-right">
-                    <a class="icon-btn" href="http://localhost:5175/pricing" title="Pricing">Pricing</a>
+                    <a class="icon-btn" href="http://localhost:5173/pricing" title="Upgrade">Upgrade</a>
                 </div>
             </div>
             """
@@ -737,7 +755,10 @@ def main() -> None:
                 unsafe_allow_html=True,
             )
         else:
-            st.info("Sign in to see your daily token usage and limits.")
+            if _is_pro_variant():
+                st.success("Pro mode active on this URL. Sign in only if you want account-linked limits and usage history.")
+            else:
+                st.info("Sign in to see your daily token usage and limits.")
 
     # ── Run Analysis ───────────────────────────
     if analyze_clicked:

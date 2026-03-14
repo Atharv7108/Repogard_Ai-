@@ -54,3 +54,31 @@ pip install -r requirements.txt
 # Start the Streamlit Analysis Engine
 streamlit run app.py
 ```
+
+## Clean Local Run (Recommended)
+
+Use the service scripts to avoid manual port/process conflicts.
+
+```bash
+cd RepoGuardAI
+
+# First-time setup
+pip install -r requirements.txt
+cd web && npm install && cd ..
+
+# Start all services (API + React + Free Streamlit + Pro Streamlit)
+./scripts/dev-up.sh
+
+# Check health
+./scripts/dev-status.sh
+
+# Stop everything
+./scripts/dev-down.sh
+```
+
+### Service URLs
+
+- Web (React): http://localhost:5173
+- API (Node/Express): http://localhost:5174
+- Streamlit Free: http://localhost:8516
+- Streamlit Pro: http://localhost:8517

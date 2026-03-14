@@ -106,21 +106,31 @@ footer {
 
 .icon-btn {
   display: inline-flex;
-  width: 36px;
-  height: 36px;
+  min-width: 128px;
+  height: 40px;
+  padding: 0 16px;
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  border-radius: 12px;
-  border: 1px solid rgba(140, 184, 214, 0.15);
-  color: var(--text-main);
-  background: linear-gradient(140deg, rgba(15, 35, 52, 0.75), rgba(9, 20, 34, 0.62));
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  border-radius: 10px;
+  border: 1px solid rgba(134, 191, 226, 0.32);
+  color: #dff4ff;
+  background:
+    linear-gradient(155deg, rgba(151, 226, 255, 0.2), rgba(88, 163, 214, 0.08)),
+    rgba(9, 25, 40, 0.46);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(233, 248, 255, 0.25), 0 10px 22px rgba(8, 33, 54, 0.35);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
 }
 
 .icon-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(61, 140, 209, 0.2);
+  border-color: rgba(169, 226, 255, 0.5);
+  box-shadow: inset 0 1px 0 rgba(233, 248, 255, 0.34), 0 14px 28px rgba(61, 140, 209, 0.28);
 }
 
 .input-panel {

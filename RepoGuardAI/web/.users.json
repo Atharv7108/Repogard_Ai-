@@ -2,11 +2,21 @@
   "atharv@gmail.com": {
     "email": "atharv@gmail.com",
     "password_hash": "$2a$10$DvcsXfDkig33hHIaa09SBuOR048Y4NHC3UrjIFZyRPn4e6DMjc2Ne",
-    "plan": "free"
+    "plan": "pro"
   },
   "atharvgole@gmail.com": {
     "email": "atharvgole@gmail.com",
     "password_hash": "$2a$10$eNe/yvAyotN196pYgEiPRuKjsIwNRV0uU3MQh9SFgLHEcyzyEHQJq",
+    "plan": "pro"
+  },
+  "fast1773455155@example.com": {
+    "email": "fast1773455155@example.com",
+    "password_hash": "$2a$10$iNR5qqk0B6CnaAgWwbrTe.Zu3Dd0AE/U7ix8ZdK3TgMEGBJSmWe6.",
     "plan": "free"
+  },
+  "fast1773455240@example.com": {
+    "email": "fast1773455240@example.com",
+    "password_hash": "$2a$10$VdXQSe4Z4iuEXh2GVL.haOe90QgzJs12XI4CRyJT9M32Me5FVZa1K",
+    "plan": "pro"
   }
 }
